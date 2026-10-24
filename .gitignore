@@ -1,0 +1,10 @@
+.venv/
+data/
+__pycache__/
+*.pyc
+.DS_Store
+# third-party papers: link, don't redistribute (see papers/README.md)
+papers/*.pdf
+papers/*.txt
+*.egg-info/
+.pytest_cache/
