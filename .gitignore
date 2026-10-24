@@ -8,3 +8,6 @@ papers/*.pdf
 papers/*.txt
 *.egg-info/
 .pytest_cache/
+
+# local team notes
+FUTURE_DIRECTIONS.md
