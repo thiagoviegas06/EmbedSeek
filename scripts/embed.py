@@ -3,7 +3,10 @@
 Writes <out>/<model_slug>/{pool,val,test}.npy (float16, L2-normalized) and meta.json
 with wall-clock time per split (C_embed) and the share of texts truncated by max_seq_length.
 
-Usage: python -I scripts/embed.py data/jigsaw/splits data/jigsaw/emb sentence-transformers/all-MiniLM-L6-v2
+Usage: python -I scripts/embed.py data/jigsaw/splits data/jigsaw/emb sentence-transformers/all-MiniLM-L6-v2 [batch_size] [max_seq_length]
+
+Uses CUDA if available (HPC), else Apple MPS, else CPU. Keep batch_size small (32-64) on a laptop:
+large batches x long sequences exhaust unified memory and slow encoding by ~100x.
 """
 import json
 import sys
@@ -17,13 +20,17 @@ from sentence_transformers import SentenceTransformer
 
 splits, out_root, model_name = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
 batch_size = int(sys.argv[4]) if len(sys.argv) > 4 else 256
+max_seq_length = int(sys.argv[5]) if len(sys.argv) > 5 else None  # default: the model's own limit
 
-device = "mps" if torch.backends.mps.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 model = SentenceTransformer(model_name, device=device)
+if max_seq_length:
+    model.max_seq_length = max_seq_length
 out = out_root / model_name.split("/")[-1]
 out.mkdir(parents=True, exist_ok=True)
 
-meta = {"model": model_name, "device": device, "dim": model.get_embedding_dimension(),
+meta = {"model": model_name, "device": torch.cuda.get_device_name() if device == "cuda" else device,
+        "batch_size": batch_size, "dim": model.get_embedding_dimension(),
         "max_seq_length": model.max_seq_length, "splits": {}}
 
 for name in ["pool", "val", "test"]:

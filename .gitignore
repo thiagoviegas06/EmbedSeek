@@ -11,3 +11,6 @@ papers/*.txt
 
 # local team notes
 FUTURE_DIRECTIONS.md
+
+# Slurm job logs
+logs/

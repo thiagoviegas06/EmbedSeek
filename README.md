@@ -208,6 +208,7 @@ After step 3, `data/jigsaw/splits/split_stats.json` should match the split table
 
 ```
 ├── README.md
+├── HPC.md                              handoff for continuing the work on the NYU HPC cluster
 ├── pyproject.toml / requirements.txt   installable package + pinned deps
 ├── src/embedseek/                      the harness (import as `embedseek`)
 │   ├── data.py                         load frozen splits + cached embeddings
@@ -219,7 +220,11 @@ After step 3, `data/jigsaw/splits/split_stats.json` should match the split table
 │   ├── embed.py                        cache embeddings for any sentence-transformers model
 │   ├── run_baselines.py                ceiling, random, query-seeded
 │   ├── run_lts_lite.py                 competing baseline
-│   └── plot_baselines.py               results figure
+│   ├── plot_baselines.py               results figure
+│   ├── filter_recall.py                screening diagnostic: positives reachable in the top-s rows
+│   ├── plot_metrics_reference.py       figures for docs/08_metrics_reference.md
+│   ├── make_method_figure.py           method overview diagram → docs/figures/method_overview.svg
+│   └── hpc/                            Slurm embedding job, env setup, split verification, bundling
 ├── tests/                              pytest suite (16 tests)
 ├── results/                            CSVs + figures (committed)
 ├── docs/                               plan, notes, results (see §13)
@@ -301,6 +306,9 @@ To add a **new embedding**: run `scripts/embed.py` with any sentence-transformer
 | [docs/04_jigsaw_exploration.md](docs/04_jigsaw_exploration.md) | Jigsaw profile: prevalence, co-occurrence, lengths, label noise |
 | [docs/05_evaluation_and_risks.md](docs/05_evaluation_and_risks.md) | Metrics, cost model, pitfalls |
 | [docs/06_baseline_results.md](docs/06_baseline_results.md) | Baseline results and findings |
+| [docs/07_updated_direction.md](docs/07_updated_direction.md) | Proposed direction: hierarchical bandit (encoder → cluster), subsampled embeddings, bootstrap CIs; method overview figure |
+| [docs/08_metrics_reference.md](docs/08_metrics_reference.md) | **Reference:** pipeline, proxy training, how every metric is computed, screening, error bars (with figures) |
+| [docs/09_hpc.md](docs/09_hpc.md) | Running embedding jobs on the NYU HPC cluster (Slurm), copying data up and back |
 | [docs/papers/00_index.md](docs/papers/00_index.md) | Notes on the 5 cited papers + synthesis |
 | [docs/proposal_reference_fixes.md](docs/proposal_reference_fixes.md) | Corrected proposal reference list + BibTeX |
 
