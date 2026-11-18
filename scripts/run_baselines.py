@@ -15,7 +15,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 
 from embedseek.data import load_split
-from embedseek.proxy import train_and_evaluate
+from embedseek.proxy import ci_columns, train_and_evaluate
 from embedseek.samplers import query_seeded, random_sample
 
 PREDICATES = ["threat", "identity_hate"]
@@ -45,7 +45,8 @@ for label in PREDICATES:
         res = train_and_evaluate(pool.emb[idx], y_pool[idx], val.emb, y_val, test.emb, y_test)
         rows.append({"model": model_slug, "label": label, "sampler": sampler, "variant": variant,
                      "budget": budget, "seed": seed, **res.as_dict(),
-                     "train_eval_secs": round(time.perf_counter() - t0, 2)})
+                     "train_eval_secs": round(time.perf_counter() - t0, 2),
+                     **ci_columns(y_test, res)})   # 95% test-set bootstrap CI (same resamples for every row)
 
     evaluate(np.arange(len(y_pool)), "ceiling", len(y_pool), -1)
     print(f"[{label}] ceiling done", flush=True)
@@ -67,7 +68,8 @@ df.to_csv(out, index=False)
 
 summary = (df.groupby(["label", "sampler", "variant", "budget"], sort=False)
              .agg(n_pos=("n_pos", "mean"), trained=("trained", "mean"),
-                  f1=("f1", "mean"), f1_std=("f1", "std"), ap=("avg_precision", "mean"))
+                  f1=("f1", "mean"), f1_std=("f1", "std"), f1_lo=("f1_lo", "mean"), f1_hi=("f1_hi", "mean"),
+                  ap=("avg_precision", "mean"), ap_lo=("ap_lo", "mean"), ap_hi=("ap_hi", "mean"))
              .round(3))
 print(summary.to_string())
 print(f"\nwrote {out}")

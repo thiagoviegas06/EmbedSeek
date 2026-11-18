@@ -144,7 +144,26 @@ C_adaptive = Σₘ C_embed,m + C_index + C_sample + B · c_LLM + C_train + C_inf
 
 ## 7. Current status and results
 
-**Done (Week 2):** harness, frozen splits, MiniLM embeddings (4.3 min for 223K comments on Apple MPS), and the random, query-seeded, LTS-lite and full-label ceiling baselines on Jigsaw.
+### Status (2026-11-18)
+
+**Done:**
+- Harness, frozen splits, and the random, query-seeded, LTS-lite and full-label ceiling baselines on Jigsaw.
+- Embeddings for MiniLM, mpnet and bge on an NYU HPC A100 (setup and timings in [HPC.md](HPC.md)).
+- 95% bootstrap CIs on every result, plus paired comparisons that cover both test-set and sampler-seed noise.
+- Encoder diagnostics: bge has the highest ceiling (F1 0.48 threat, 0.52 identity_hate). [docs/10](docs/10_encoder_diagnostics.md)
+- The two-level bandit (encoder → cluster) with its ablations and controls, run with bge and MiniLM as proxy embeddings. [docs/11](docs/11_bandit_results_and_next_directions.md)
+
+**Findings from the bandit runs** (paired 95% CIs, 10 seeds):
+1. **A query warm start is the biggest lever.** Labeling 75 rows nearest a hand-written example sentence first lifts threat F1 at B = 100 from ≈ 0.02 to ≈ 0.41, against a ceiling of 0.48.
+2. **Cluster search after the warm start adds value.** It beats the warm start followed by random rows (+0.05 F1 at B = 1000) and pure query search.
+3. **Choosing the encoder online does not work.** The two-level bandit ties single-encoder LTS-lite given the same warm start. The best encoder depends on the predicate (bge for threat, MiniLM for identity_hate), but the bandit can't tell, even with a positives-per-batch reward.
+4. **Variety beats count.** Methods that find more positives often get lower F1 (query search on bge: 218 threats, F1 0.37; LTS-lite on bge with warm start: 114 threats, F1 0.48). A reward that counts positives optimises the wrong target.
+
+**Now:** a more varied warm start, using several example sentences per predicate across encoders. Then more varied picks inside clusters, a third predicate, and the screening sweep. Plan and rationale: [docs/11](docs/11_bandit_results_and_next_directions.md).
+
+### First baselines (Week 2)
+
+Harness, frozen splits, MiniLM embeddings (4.3 min for 223K comments on Apple MPS), and the random, query-seeded, LTS-lite and full-label ceiling baselines on Jigsaw.
 
 ![Baselines](results/figures/baselines_minilm.png)
 
@@ -158,7 +177,7 @@ Test F1 at **B = 1000** (MiniLM for both search and proxy; random and LTS-lite a
 | LTS-lite | 0.30 (26 found, high variance) | **0.42** (118 found) |
 | *Ceiling: all 143K pool labels* | *0.43* | *0.46* |
 
-**Early findings** (single dataset; confidence intervals still to come):
+**Early findings** (single dataset; point estimates; CIs now in `results/baselines_*.csv` and `results/bandit_*.csv`):
 1. **Random fails:** for threat at B ≤ 500, a classifier can be trained in only 20–70% of runs.
 2. **Query wording matters enormously.** A comment-like query ("I am going to find you and kill you.") finds 22x more threats than a description ("a threat of violence…"). The description retrieves comments *about* threats (policy talk, definitions), not threats. Embeddings measure textual similarity, not whether a predicate holds.
 3. **The ceiling is low** (F1 ≈ 0.43–0.46 even with every label). The proxy *representation* limits performance, which motivates stronger and combined proxy features.
@@ -225,7 +244,7 @@ After step 3, `data/jigsaw/splits/split_stats.json` should match the split table
 │   ├── plot_metrics_reference.py       figures for docs/08_metrics_reference.md
 │   ├── make_method_figure.py           method overview diagram → docs/figures/method_overview.svg
 │   └── hpc/                            Slurm embedding job, env setup, split verification, bundling
-├── tests/                              pytest suite (16 tests)
+├── tests/                              pytest suite (56 tests)
 ├── results/                            CSVs + figures (committed)
 ├── docs/                               plan, notes, results (see §13)
 ├── papers/                             links to cited papers (PDFs not committed)
@@ -309,6 +328,9 @@ To add a **new embedding**: run `scripts/embed.py` with any sentence-transformer
 | [docs/07_updated_direction.md](docs/07_updated_direction.md) | Proposed direction: hierarchical bandit (encoder → cluster), subsampled embeddings, bootstrap CIs; method overview figure |
 | [docs/08_metrics_reference.md](docs/08_metrics_reference.md) | **Reference:** pipeline, proxy training, how every metric is computed, screening, error bars (with figures) |
 | [docs/09_hpc.md](docs/09_hpc.md) | Running embedding jobs on the NYU HPC cluster (Slurm), copying data up and back |
+| [docs/10_encoder_diagnostics.md](docs/10_encoder_diagnostics.md) | Do MiniLM, mpnet and bge find different positives? Ceilings, cluster and query overlap; proxy-embedding choice |
+| [docs/11_bandit_results_and_next_directions.md](docs/11_bandit_results_and_next_directions.md) | **Current:** two-level bandit results, what the warm start is, why variety beats count, next directions |
+| [HPC.md](HPC.md) | Handoff for continuing on the NYU Torch cluster: rules, task queue, status log |
 | [docs/papers/00_index.md](docs/papers/00_index.md) | Notes on the 5 cited papers + synthesis |
 | [docs/proposal_reference_fixes.md](docs/proposal_reference_fixes.md) | Corrected proposal reference list + BibTeX |
 
