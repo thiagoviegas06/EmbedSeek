@@ -102,6 +102,7 @@ def hierarchical_lts(pool_embs: list[np.ndarray], cluster_ids: list[np.ndarray],
                      oracle: Callable[[np.ndarray], np.ndarray], budget: int, seed: int,
                      batch: int = 25, decay: float = 0.99, share_labels: bool = True,
                      warm_start: list[np.ndarray] | None = None, warm_batch: int | None = None,
+                     warm_rows: np.ndarray | None = None,
                      flat: bool = False, encoder_reward: str = "binary",
                      trace: list | None = None) -> np.ndarray:
     """Ours: two-level Thompson sampling, encoder -> cluster (docs/07, "Idea 1").
@@ -120,6 +121,10 @@ def hierarchical_lts(pool_embs: list[np.ndarray], cluster_ids: list[np.ndarray],
         labels its top-`warm_batch` rows (default `batch`) by cosine to its query; these count
         against the budget and update the stats like any other round. With the default this is
         the first round of `multi_query`.
+    warm_rows:    rows chosen by the caller (e.g. `multi_query` over several example sentences and
+        encoders), labeled as one round credited to encoder 0 before Thompson sampling starts.
+        Meant for one encoder (LTS-lite); with one encoder, `warm_rows=query_seeded(emb, q, n)` is
+        the same as `warm_start=[q], warm_batch=n`. Not combinable with `warm_start`.
     flat:         ablation without the hierarchy: every (encoder, cluster) pair is one arm.
     encoder_reward: "binary" (default) gives the chosen encoder a win if the batch has a positive.
         "rate" gives it r = positives / batch as a fractional win and 1 - r as a loss, so an
@@ -130,6 +135,10 @@ def hierarchical_lts(pool_embs: list[np.ndarray], cluster_ids: list[np.ndarray],
     """
     if encoder_reward not in ("binary", "rate"):
         raise ValueError(f"encoder_reward must be 'binary' or 'rate', got {encoder_reward!r}")
+    if warm_start is not None and warm_rows is not None:
+        raise ValueError("pass warm_start or warm_rows, not both")
+    if warm_rows is not None and len(np.unique(warm_rows)) != len(warm_rows):
+        raise ValueError("warm_rows must be unique")
     rng = np.random.default_rng(seed)
     n_enc = len(pool_embs)
     ks = [int(c.max()) + 1 for c in cluster_ids]
@@ -167,6 +176,11 @@ def hierarchical_lts(pool_embs: list[np.ndarray], cluster_ids: list[np.ndarray],
                 break
             sims = np.where(unlabeled, pool_embs[m] @ query_emb, -np.inf)
             label_and_update(m, -1, np.argsort(-sims)[:n])
+
+    if warm_rows is not None:
+        rows = np.asarray(warm_rows)[: budget - len(labeled)]
+        if len(rows):
+            label_and_update(0, -1, rows)
 
     while len(labeled) < budget:
         open_clusters = [np.unique(cluster_ids[e][unlabeled]) for e in range(n_enc)]

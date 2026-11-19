@@ -138,6 +138,40 @@ def test_hierarchical_lts_exploits_a_cluster_planted_in_one_encoder(flat):
     assert rounds[1] > rounds[0]                               # and it learned which encoder to use
 
 
+def test_hierarchical_lts_warm_rows_from_one_query_match_warm_start():
+    rng = np.random.default_rng(0)
+    pool, clusters = unit_rows(3_000, 16), rng.integers(0, 20, 3_000)
+    y = (rng.random(3_000) < 0.05).astype(int)
+    q = pool[5]
+    for seed in range(3):
+        assert np.array_equal(
+            hierarchical_lts([pool], [clusters], lambda i: y[i], 300, seed, warm_rows=query_seeded(pool, q, 75)),
+            hierarchical_lts([pool], [clusters], lambda i: y[i], 300, seed, warm_start=[q], warm_batch=75))
+
+
+@pytest.mark.parametrize("budget", [50, 300])
+def test_hierarchical_lts_varied_warm_rows_come_first_without_peeking(budget):
+    # A varied warm start: three example sentences searched in two encoders, then LTS-lite in one.
+    embs, clusters = two_encoders(3_000)
+    y = (np.random.default_rng(1).random(3_000) < 0.05).astype(int)
+    warm = multi_query([embs[0], embs[0], embs[1]], [embs[0][7], embs[0][99], embs[1][11]], 75, batch=5)
+    oracle = SpyOracle(y)
+    idx = hierarchical_lts([embs[0]], [clusters[0]], oracle, budget, seed=0, warm_rows=warm)
+    n = min(75, budget)
+    assert np.array_equal(idx[:n], warm[:n])
+    assert len(idx) == budget and len(np.unique(idx)) == budget
+    assert sorted(oracle.requested) == sorted(idx.tolist())
+
+
+def test_hierarchical_lts_rejects_bad_warm_rows():
+    embs, clusters = two_encoders(500)
+    oracle = lambda i: np.zeros(len(i), dtype=int)
+    with pytest.raises(ValueError):
+        hierarchical_lts(embs, clusters, oracle, 50, 0, warm_start=[embs[0][0]], warm_rows=np.arange(5))
+    with pytest.raises(ValueError):
+        hierarchical_lts(embs, clusters, oracle, 50, 0, warm_rows=np.array([1, 1, 2]))
+
+
 def test_hierarchical_lts_rate_reward_fixes_binary_preferring_the_poorer_encoder():
     # Encoder 0's clusters ignore the label (15% positives everywhere), so its batches almost always
     # hold a positive. Encoder 1's clusters 0-4 are 30% positive and 5-9 hold none, so exploring them
