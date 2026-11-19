@@ -68,7 +68,9 @@ Any reward that counts positives (binary, rate, or per row) optimises the wrong 
 
 ## 3. Next directions
 
-### 3.1 A more varied warm start (current focus)
+### 3.1 A more varied warm start (done)
+
+**Results: [docs/12](12_varied_warm_start.md).** Five sentences help identity_hate (most at small budgets) and hurt threat; the best method at B = 1000 is unchanged.
 
 Replace the single example sentence with **several different example sentences per predicate**. For threat, for example: direct threats, veiled threats, threats against property or family, conditional threats. Each sentence gets a share of the warm-start rows.
 

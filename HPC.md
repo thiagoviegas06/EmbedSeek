@@ -255,3 +255,12 @@ Append a dated entry at the end of every working session: what you did, what's r
   - Why it can't work: MiniLM's identity_hate advantage is not in positives found. The bandit finds more positives (167.5) than `lts_lite/MiniLM+warm` (152.6) yet gets lower F1. Rewarding positives cannot recover a gap that is about which positives make good proxy training data.
   - Running: nothing. Next: the humans' call on whether to stop iterating on the encoder level (see the recommendation in the session) and move to the screening sweep and write-up.
 - **2026-11-18 (direction change):** The humans dropped the encoder-selecting bandit as the main method (kept as a negative result) and chose the **varied warm start** (several example sentences per predicate) as the next focus. Results and plan written up in `docs/11_bandit_results_and_next_directions.md`; README §7 updated. Next: implement the varied warm start with hand-written sentences, run against the single-sentence warm start at equal size.
+- **2026-11-19 (Torch, varied warm start):**
+  - Job 23664198 (62 min) done: `scripts/run_warm_start.py`, five hand-written sentences per predicate against one, across one or three encoders, followed by LTS-lite (bge or MiniLM) or random rows. Results in `results/warm_start_<proxy>.csv` and `results/warm_start_pairs_<proxy>.csv`; write-up in `docs/12_varied_warm_start.md`.
+  - Reproduction check passes: `lts_bge/1s-1enc`, `lts_minilm/1s-1enc` and `random/1s-3enc` match `lts_lite/<encoder>+warm` and `warm_random` from job 23607041 exactly, with both proxies.
+  - Five sentences trade count for variety: warm positives drop from 55 to 33 (threat) and 24 to 17 (identity_hate); the positives found are more varied.
+  - identity_hate: five sentences across three encoders beat one sentence for every follower at B = 100 (+0.04 to +0.08 F1, bge proxy; up to +0.11 MiniLM proxy) and lower seed spread. Five sentences in MiniLM alone hurt (−0.04 to −0.07 at every budget).
+  - threat: five sentences are worse or tied (−0.02 to −0.05 F1), except query-only search at B ≤ 250.
+  - The best method is unchanged: best 5s vs best 1s ties at every budget (bge proxy).
+  - Positives found still tracks F1 at B ≥ 500 within warm start + follower methods, which qualifies docs/11's "variety beats count".
+  - Running: nothing. Open decision for the humans: which warm start the next experiments use (docs/12 §5). Next: per-sentence hit counts, a mixed warm start (original + variants), then varied in-cluster picks (docs/11 §3.2).

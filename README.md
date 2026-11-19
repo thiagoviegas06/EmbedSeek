@@ -144,7 +144,7 @@ C_adaptive = Σₘ C_embed,m + C_index + C_sample + B · c_LLM + C_train + C_inf
 
 ## 7. Current status and results
 
-### Status (2026-11-18)
+### Status (2026-11-19)
 
 **Done:**
 - Harness, frozen splits, and the random, query-seeded, LTS-lite and full-label ceiling baselines on Jigsaw.
@@ -152,6 +152,7 @@ C_adaptive = Σₘ C_embed,m + C_index + C_sample + B · c_LLM + C_train + C_inf
 - 95% bootstrap CIs on every result, plus paired comparisons that cover both test-set and sampler-seed noise.
 - Encoder diagnostics: bge has the highest ceiling (F1 0.48 threat, 0.52 identity_hate). [docs/10](docs/10_encoder_diagnostics.md)
 - The two-level bandit (encoder → cluster) with its ablations and controls, run with bge and MiniLM as proxy embeddings. [docs/11](docs/11_bandit_results_and_next_directions.md)
+- A varied warm start: five example sentences per predicate against one, across one or three encoders. [docs/12](docs/12_varied_warm_start.md)
 
 **Findings from the bandit runs** (paired 95% CIs, 10 seeds):
 1. **A query warm start is the biggest lever.** Labeling 75 rows nearest a hand-written example sentence first lifts threat F1 at B = 100 from ≈ 0.02 to ≈ 0.41, against a ceiling of 0.48.
@@ -159,7 +160,12 @@ C_adaptive = Σₘ C_embed,m + C_index + C_sample + B · c_LLM + C_train + C_inf
 3. **Choosing the encoder online does not work.** The two-level bandit ties single-encoder LTS-lite given the same warm start. The best encoder depends on the predicate (bge for threat, MiniLM for identity_hate), but the bandit can't tell, even with a positives-per-batch reward.
 4. **Variety beats count.** Methods that find more positives often get lower F1 (query search on bge: 218 threats, F1 0.37; LTS-lite on bge with warm start: 114 threats, F1 0.48). A reward that counts positives optimises the wrong target.
 
-**Now:** a more varied warm start, using several example sentences per predicate across encoders. Then more varied picks inside clusters, a third predicate, and the screening sweep. Plan and rationale: [docs/11](docs/11_bandit_results_and_next_directions.md).
+**Findings from the varied warm start** ([docs/12](docs/12_varied_warm_start.md)):
+1. **It depends on the predicate.** Five sentences across three encoders help identity_hate, most at small budgets (+0.04 to +0.08 F1 at B = 100, with lower seed spread), and hurt threat (−0.02 to −0.05), where the new sentences find 40% fewer warm positives.
+2. **The best method at B = 1000 is unchanged:** LTS-lite on bge for threat, LTS-lite on MiniLM for identity_hate, both with the single sentence.
+3. **"Variety beats count" needs a qualifier.** Within warm start + follower methods, positives found still tracks F1 at B ≥ 500. Variety helps when it does not cost many positives.
+
+**Now:** per-sentence hit counts and a mixed warm start (original sentence plus variants), then more varied picks inside clusters, a third predicate, and the screening sweep. Plan: [docs/11](docs/11_bandit_results_and_next_directions.md) §3, [docs/12](docs/12_varied_warm_start.md) §5.
 
 ### First baselines (Week 2)
 
@@ -329,7 +335,8 @@ To add a **new embedding**: run `scripts/embed.py` with any sentence-transformer
 | [docs/08_metrics_reference.md](docs/08_metrics_reference.md) | **Reference:** pipeline, proxy training, how every metric is computed, screening, error bars (with figures) |
 | [docs/09_hpc.md](docs/09_hpc.md) | Running embedding jobs on the NYU HPC cluster (Slurm), copying data up and back |
 | [docs/10_encoder_diagnostics.md](docs/10_encoder_diagnostics.md) | Do MiniLM, mpnet and bge find different positives? Ceilings, cluster and query overlap; proxy-embedding choice |
-| [docs/11_bandit_results_and_next_directions.md](docs/11_bandit_results_and_next_directions.md) | **Current:** two-level bandit results, what the warm start is, why variety beats count, next directions |
+| [docs/11_bandit_results_and_next_directions.md](docs/11_bandit_results_and_next_directions.md) | Two-level bandit results, what the warm start is, why variety beats count, next directions |
+| [docs/12_varied_warm_start.md](docs/12_varied_warm_start.md) | **Current:** five example sentences vs one in the warm start; predicate-dependent effect; next steps |
 | [HPC.md](HPC.md) | Handoff for continuing on the NYU Torch cluster: rules, task queue, status log |
 | [docs/papers/00_index.md](docs/papers/00_index.md) | Notes on the 5 cited papers + synthesis |
 | [docs/proposal_reference_fixes.md](docs/proposal_reference_fixes.md) | Corrected proposal reference list + BibTeX |
